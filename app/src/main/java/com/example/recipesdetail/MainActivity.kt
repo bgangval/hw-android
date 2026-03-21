@@ -420,6 +420,7 @@ fun RecipeDetailsScreen(
     onBackClick: () -> Unit
 ) {
     val recipe = viewModel.getRecipeDetails(recipeId)
+    val recipeFromList = viewModel.getRecipeById(recipeId)
 
     Scaffold(
         topBar = {
@@ -451,6 +452,7 @@ fun RecipeDetailsScreen(
 
                 Text("Cook time: ${ recipe.cookTime}")
                 Text("Difficulty: ${ recipe.difficulty}")
+                Text("Status: ${recipeFromList?.status}")
                 Text("Ingredients: ${ recipe.ingredients}")
                 Spacer(Modifier.height(16.dp))
 
