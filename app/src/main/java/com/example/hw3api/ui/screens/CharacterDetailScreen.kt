@@ -6,22 +6,15 @@ import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
-import com.example.hw3api.ui.CharacterViewModel
-import com.example.hw3api.model.Character
+import com.example.hw3api.ui.CharacterDetailUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterDetailScreen(
-    id: Int,
-    viewModel: CharacterViewModel,
+    uiState: CharacterDetailUiState,
+    onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
-    var character by remember { mutableStateOf<Character?>(null) }
-
-    LaunchedEffect(id) {
-        character = viewModel.getCharacter(id)
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -45,38 +38,46 @@ fun CharacterDetailScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
+            when(uiState) {
+                is CharacterDetailUiState.Loading -> {
+                    Text("Loading...")
+                }
 
-            if (character == null) {
-                Text("Loading...")
-            } else {
+                is CharacterDetailUiState.Error -> {
+                    Column {
+                        Text(uiState.message)
+                        Button(onClick = onRetry) {
+                            Text("Retry")
+                        }
+                    }
+                }
 
-                Text(
-                    text = character!!.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                is CharacterDetailUiState.Success -> {
+                    val character = uiState.character
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = character.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(6.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "Status",
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(character!!.status)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(6.dp)
+                    ) {
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(modifier = Modifier.padding(16.dp)) {
 
-                        Text(
-                            text = "Species",
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(character!!.species)
+                            Text("Status", fontWeight = FontWeight.Bold)
+                            Text(character.status)
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text("Species", fontWeight = FontWeight.Bold)
+                            Text(character.species)
+                        }
                     }
                 }
             }

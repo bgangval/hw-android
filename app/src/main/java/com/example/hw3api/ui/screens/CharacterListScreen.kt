@@ -76,7 +76,10 @@ fun CharacterListScreen(
                 is CharacterUiState.Success -> {
 
                     LazyColumn {
-                        items(uiState.characters) { character ->
+                        items(
+                            uiState.characters,
+                            key = { it.id }
+                        ) { character ->
 
                             Card(
                                 modifier = Modifier

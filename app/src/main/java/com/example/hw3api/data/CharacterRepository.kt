@@ -4,6 +4,7 @@ import com.example.hw3api.data.remote.CharacterApi
 import com.example.hw3api.data.remote.toDomain
 import com.example.hw3api.model.Character
 import com.example.hw3api.NetworkModule
+import retrofit2.HttpException
 
 class CharacterRepository(
     private val api: CharacterApi = NetworkModule.api
@@ -12,7 +13,11 @@ class CharacterRepository(
         query: String,
         page: Int
     ): List<Character> {
-        return api.getCharacters(query, page).results.map { it.toDomain() }
+        return try {
+            api.getCharacters(query, page).results.map { it.toDomain() }
+        } catch (e: HttpException) {
+            if (e.code() == 404) emptyList() else throw e
+        }
     }
 
     suspend fun getCharacter(id: Int): Character {

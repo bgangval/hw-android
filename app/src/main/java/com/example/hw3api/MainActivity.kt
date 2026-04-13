@@ -3,6 +3,7 @@ package com.example.hw3api
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.*
 import com.example.hw3api.ui.CharacterViewModel
@@ -19,11 +20,15 @@ class MainActivity : ComponentActivity() {
 
             NavHost(navController, startDestination = "list") {
                 composable("list") {
+                    LaunchedEffect(Unit) {
+                        viewModel.loadInitial()
+                    }
+
                     CharacterListScreen(
                         uiState = viewModel.uiState,
                         searchQuery = viewModel.searchQuery,
                         onSearchChange = viewModel::onSearchChange,
-                        onRetry = viewModel::loadCharacters,
+                        onRetry = viewModel::retry,
                         onLoadMore = viewModel::loadNextPage,
                         onClick = {
                             navController.navigate("detail/$it")
@@ -33,9 +38,14 @@ class MainActivity : ComponentActivity() {
 
                 composable("detail/{id}") { backStack ->
                     val id = backStack.arguments?.getString("id")?.toInt() ?: 0
+
+                    LaunchedEffect(id) {
+                        viewModel.loadCharacter(id)
+                    }
+
                     CharacterDetailScreen(
-                        id = id,
-                        viewModel = viewModel,
+                        uiState = viewModel.detailState,
+                        onRetry = { viewModel.loadCharacter(id) },
                         onBack = { navController.popBackStack() }
                     )
                 }
