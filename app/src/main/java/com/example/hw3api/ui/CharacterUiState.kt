@@ -6,7 +6,9 @@ sealed class CharacterUiState {
     object Loading : CharacterUiState()
 
     data class Success(
-        val characters: List<Character>
+        val characters: List<Character>,
+        val endReached: Boolean,
+        val paginationError: Boolean = false
     ) : CharacterUiState()
 
     object Empty : CharacterUiState()

@@ -9,6 +9,7 @@ import androidx.navigation.compose.*
 import com.example.hw3api.ui.CharacterViewModel
 import com.example.hw3api.ui.screens.CharacterListScreen
 import com.example.hw3api.ui.screens.CharacterDetailScreen
+import com.example.hw3api.ui.CharacterViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,13 +17,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
-            val viewModel: CharacterViewModel = viewModel()
+            val viewModel: CharacterViewModel = viewModel(
+                factory = CharacterViewModelFactory()
+            )
 
             NavHost(navController, startDestination = "list") {
                 composable("list") {
-                    LaunchedEffect(Unit) {
-                        viewModel.loadInitial()
-                    }
 
                     CharacterListScreen(
                         uiState = viewModel.uiState,
@@ -37,7 +37,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable("detail/{id}") { backStack ->
-                    val id = backStack.arguments?.getString("id")?.toInt() ?: 0
+                    val id = backStack.arguments?.getString("id")?.toIntOrNull()
+
+                    if (id == null) {
+                        navController.popBackStack()
+                        return@composable
+                    }
 
                     LaunchedEffect(id) {
                         viewModel.loadCharacter(id)

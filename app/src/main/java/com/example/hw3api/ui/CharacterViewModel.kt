@@ -8,9 +8,9 @@ import com.example.hw3api.model.Character
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
 
-class CharacterViewModel : ViewModel() {
-
-    private val repository = CharacterRepository()
+class CharacterViewModel(
+    private val repository: CharacterRepository
+) : ViewModel() {
 
     var uiState by mutableStateOf<CharacterUiState>(CharacterUiState.Loading)
         private set
@@ -70,7 +70,7 @@ class CharacterViewModel : ViewModel() {
             if (result.isEmpty()) {
                 endReached = true
                 uiState = if (loadMore && characters.isNotEmpty()) {
-                    CharacterUiState.Success(characters)
+                    CharacterUiState.Success(characters, endReached)
                 } else {
                     CharacterUiState.Empty
                 }
@@ -83,12 +83,18 @@ class CharacterViewModel : ViewModel() {
                 result
             }
 
-            uiState = CharacterUiState.Success(characters)
+            uiState = CharacterUiState.Success(characters, endReached)
             currentPage++
 
         } catch (_: Exception) {
             if (!loadMore) {
                 uiState = CharacterUiState.Error("Loading error")
+            } else {
+                uiState = CharacterUiState.Success(
+                    characters = characters,
+                    endReached = endReached,
+                    paginationError = true
+                )
             }
         } finally {
             isLoading = false
@@ -102,16 +108,30 @@ class CharacterViewModel : ViewModel() {
         }
     }
 
+    private var detailRequestId = 0
+
     fun loadCharacter(id: Int) {
         viewModelScope.launch {
+            val currentRequest = ++detailRequestId
+
             detailState = CharacterDetailUiState.Loading
+
             try {
                 val result = repository.getCharacter(id)
+
+                if (currentRequest != detailRequestId) return@launch
+
                 detailState = CharacterDetailUiState.Success(result)
-            } catch (_: Exception){
+            } catch (_: Exception) {
+                if (currentRequest != detailRequestId) return@launch
+
                 detailState = CharacterDetailUiState.Error("Loading error")
             }
         }
+    }
+
+    init {
+        loadInitial()
     }
 
     fun retry() {

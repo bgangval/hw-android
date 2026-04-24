@@ -76,6 +76,7 @@ fun CharacterListScreen(
                 is CharacterUiState.Success -> {
 
                     LazyColumn {
+
                         items(
                             uiState.characters,
                             key = { it.id }
@@ -94,14 +95,31 @@ fun CharacterListScreen(
                             }
                         }
 
-                        item {
-                            Button(
-                                onClick = onLoadMore,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Text("Load more")
+                        if (uiState.paginationError) {
+                            item {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    Text("Error loading more")
+                                    Button(onClick = onLoadMore) {
+                                        Text("Retry")
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!uiState.endReached) {
+                            item {
+                                Button(
+                                    onClick = onLoadMore,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    Text("Load more")
+                                }
                             }
                         }
                     }
