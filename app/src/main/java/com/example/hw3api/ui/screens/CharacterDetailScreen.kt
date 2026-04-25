@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import com.example.hw3api.ui.CharacterDetailUiState
+import com.example.hw3api.model.Character
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.IconButton
@@ -17,7 +18,8 @@ import androidx.compose.material3.Icon
 fun CharacterDetailScreen(
     uiState: CharacterDetailUiState,
     onRetry: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFavouriteClick: (Character) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -74,9 +76,7 @@ fun CharacterDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(6.dp)
                     ) {
-
                         Column(modifier = Modifier.padding(16.dp)) {
-
                             Text("Status", fontWeight = FontWeight.Bold)
                             Text(character.status)
 
@@ -85,6 +85,15 @@ fun CharacterDetailScreen(
                             Text("Species", fontWeight = FontWeight.Bold)
                             Text(character.species)
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(onClick = { onFavouriteClick(character) }) {
+                        Text(
+                            if (character.isFavourite) "Remove from Favorites"
+                            else "Add to Favorites"
+                        )
                     }
                 }
             }
