@@ -4,12 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.*
 import com.example.hw3api.ui.CharacterViewModel
-import com.example.hw3api.ui.screens.CharacterListScreen
 import com.example.hw3api.ui.screens.CharacterDetailScreen
+import com.example.hw3api.ui.screens.CharacterListScreen
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.hilt.navigation.compose.hiltViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -18,26 +18,27 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
+            val viewModel: CharacterViewModel = viewModel()
 
             NavHost(navController, startDestination = "list") {
                 composable("list") {
-                    val viewModel: CharacterViewModel = hiltViewModel()
+                    LaunchedEffect(Unit) {
+                        viewModel.loadInitial()
+                    }
 
                     CharacterListScreen(
-                        uiState = viewModel.uiState,
-                        searchQuery = viewModel.searchQuery,
+                        uiState = viewModel.listState,
+                        searchQuery = viewModel.listState.searchQuery,
                         onSearchChange = viewModel::onSearchChange,
                         onRetry = viewModel::retry,
                         onLoadMore = viewModel::loadNextPage,
                         onClick = { navController.navigate("detail/$it") },
                         onFavouriteClick = viewModel::onFavouriteClick,
-                        favourites = viewModel.favourites
+                        favourites = viewModel.listState.favourites
                     )
                 }
 
                 composable("detail/{id}") { backStack ->
-                    val viewModel: CharacterViewModel = hiltViewModel()
-
                     val id = backStack.arguments?.getString("id")?.toIntOrNull()
 
                     if (id == null) {

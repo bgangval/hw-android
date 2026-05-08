@@ -1,39 +1,54 @@
 package com.example.hw3api.ui
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.hw3api.data.CharacterRepository
 import com.example.hw3api.model.Character
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class ListUiState(
+    val characters: List<Character> = emptyList(),
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val endReached: Boolean = false,
+    val paginationError: Boolean = false,
+    val searchQuery: String = "",
+    val favourites: List<Character> = emptyList(),
+    val favouriteLoadingIds: Set<Int> = emptySet()
+)
+
+sealed class DetailUiState {
+    object Loading : DetailUiState()
+    data class Success(val character: Character) : DetailUiState()
+    data class Error(val message: String) : DetailUiState()
+}
 
 @HiltViewModel
 class CharacterViewModel @Inject constructor(
     private val repository: CharacterRepository
 ) : ViewModel() {
 
-    var uiState by mutableStateOf<CharacterUiState>(CharacterUiState.Loading)
+    var listState by mutableStateOf(ListUiState(isLoading = true))
         private set
 
-    var detailState by mutableStateOf<CharacterDetailUiState>(CharacterDetailUiState.Loading)
-        private set
-
-    var searchQuery by mutableStateOf("")
-        private set
-
-    var favourites by mutableStateOf<List<Character>>(emptyList())
+    var detailState by mutableStateOf<DetailUiState>(DetailUiState.Loading)
         private set
 
     private var currentPage = 1
-    private var isLoading = false
     private var endReached = false
     private var characters = listOf<Character>()
 
     private var requestId = 0
     private var searchJob: Job? = null
+
+    private var favouriteIds: Set<Int> = emptySet()
 
     fun loadInitial() {
         searchJob?.cancel()
@@ -41,13 +56,12 @@ class CharacterViewModel @Inject constructor(
             currentPage = 1
             endReached = false
             characters = emptyList()
-            loadFavourites()
+            loadFavouriteIds()
             loadCharacters(loadMore = false)
         }
     }
 
     fun onSearchChange(query: String) {
-        searchQuery = query
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(500)
@@ -55,77 +69,82 @@ class CharacterViewModel @Inject constructor(
             endReached = false
             characters = emptyList()
 
+            listState = listState.copy(
+                searchQuery = query,
+                isLoading = true,
+                errorMessage = null
+            )
+
             loadCharacters(loadMore = false)
         }
     }
 
-    private suspend fun loadFavourites() {
+    private suspend fun loadFavouriteIds() {
         try {
-            favourites = repository.getFavourites()
+            favouriteIds = repository.getFavouritesIds()
+            val favList = repository.getFavourites()
+            listState = listState.copy(favourites = favList)
         } catch (e: Exception) {
-            favourites = emptyList()
+            listState = listState.copy(
+                errorMessage = "Failed to load favourites: ${e.message}"
+            )
         }
     }
 
     private suspend fun loadCharacters(loadMore: Boolean = false) {
-        if (isLoading || endReached) return
+        if (listState.isLoading && loadMore) return
+        if (!loadMore && endReached) return
 
         val currentRequest = ++requestId
-        isLoading = true
+        val query = listState.searchQuery
 
         if (!loadMore) {
-            uiState = CharacterUiState.Loading
+            listState = listState.copy(isLoading = true, errorMessage = null)
         }
 
         try {
-            val result = repository.searchCharacters(searchQuery, currentPage)
+            val result = repository.searchCharacters(query, currentPage)
             if (currentRequest != requestId) return
 
-            if (result.isEmpty()) {
+            if (result.isEmpty() && !loadMore) {
                 endReached = true
-                uiState = if (loadMore && characters.isNotEmpty()) {
-                    CharacterUiState.Success(
-                        characters = characters,
-                        endReached = true
-                    )
-                } else {
-                    CharacterUiState.Empty
-                }
+                listState = listState.copy(
+                    isLoading = false,
+                    characters = emptyList(),
+                    endReached = true
+                )
                 return
             }
 
-            characters = if (loadMore) {
-                characters + result
-            } else {
-                result
-            }
+            characters = if (loadMore) characters + result else result
+            endReached = result.isEmpty()
 
-            uiState = CharacterUiState.Success(
+            listState = listState.copy(
+                isLoading = false,
                 characters = characters,
-                endReached = endReached
+                endReached = endReached,
+                paginationError = false
             )
             currentPage++
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (currentRequest != requestId) return
             if (!loadMore) {
-                uiState = CharacterUiState.Error("Loading error")
-            } else {
-                uiState = CharacterUiState.Success(
-                    characters = characters,
-                    endReached = endReached,
-                    paginationError = true
+                listState = listState.copy(
+                    isLoading = false,
+                    errorMessage = "Loading error: ${e.message}"
                 )
+            } else {
+                listState = listState.copy(paginationError = true)
             }
-        } finally {
-            isLoading = false
         }
     }
 
     fun loadNextPage() {
         viewModelScope.launch {
-            if (isLoading || endReached) return@launch
-            loadCharacters(true)
+            if (!listState.isLoading && !listState.endReached && !listState.paginationError) {
+                loadCharacters(true)
+            }
         }
     }
 
@@ -134,53 +153,57 @@ class CharacterViewModel @Inject constructor(
     fun loadCharacter(id: Int) {
         viewModelScope.launch {
             val currentRequest = ++detailRequestId
-            detailState = CharacterDetailUiState.Loading
+            detailState = DetailUiState.Loading
 
             try {
-                val result = repository.getCharacter(id)
+                val character = repository.getCharacter(id)
                 if (currentRequest != detailRequestId) return@launch
-                detailState = CharacterDetailUiState.Success(result)
+                detailState = DetailUiState.Success(character)
             } catch (e: Exception) {
-                e.printStackTrace()
                 if (currentRequest != detailRequestId) return@launch
-                detailState = CharacterDetailUiState.Error("Loading error")
+                detailState = DetailUiState.Error("Loading error: ${e.message}")
             }
         }
     }
 
     fun onFavouriteClick(character: Character) {
+        if (character.id in listState.favouriteLoadingIds) return
+
         viewModelScope.launch {
             try {
-                val newState = !character.isFavourite
-                repository.toggleFavourite(character)
+                listState = listState.copy(
+                    favouriteLoadingIds = listState.favouriteLoadingIds + character.id
+                )
 
-                val updated = characters.map {
-                    if (it.id == character.id) it.copy(isFavourite = newState) else it
-                }
-                characters = updated
+                val isCurrentlyFavourite = character.id in favouriteIds
+                repository.toggleFavourite(character.copy(isFavourite = isCurrentlyFavourite))
+                loadFavouriteIds()
 
-                val currentState = uiState
-                if (currentState is CharacterUiState.Success) {
-                    uiState = currentState.copy(characters = updated)
+                characters = characters.map {
+                    if (it.id == character.id) it.copy(isFavourite = !isCurrentlyFavourite) else it
                 }
+                listState = listState.copy(characters = characters)
 
                 val det = detailState
-                if (det is CharacterDetailUiState.Success && det.character.id == character.id) {
-                    detailState = CharacterDetailUiState.Success(
-                        det.character.copy(isFavourite = newState)
+                if (det is DetailUiState.Success && det.character.id == character.id) {
+                    detailState = DetailUiState.Success(
+                        det.character.copy(isFavourite = !isCurrentlyFavourite)
                     )
                 }
-
-                loadFavourites()
             } catch (e: Exception) {
-                e.printStackTrace()
+                listState = listState.copy(
+                    errorMessage = "Failed to update favourite: ${e.message}"
+                )
+            } finally {
+                listState = listState.copy(
+                    favouriteLoadingIds = listState.favouriteLoadingIds - character.id
+                )
             }
         }
     }
 
     init {
         loadInitial()
-
     }
 
     fun retry() {
@@ -189,7 +212,7 @@ class CharacterViewModel @Inject constructor(
             currentPage = 1
             endReached = false
             characters = emptyList()
-            loadFavourites()
+            loadFavouriteIds()
             loadCharacters(loadMore = false)
         }
     }

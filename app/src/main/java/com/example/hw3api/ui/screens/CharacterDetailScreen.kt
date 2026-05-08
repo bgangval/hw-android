@@ -6,17 +6,15 @@ import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
-import com.example.hw3api.ui.CharacterDetailUiState
+import com.example.hw3api.ui.DetailUiState
 import com.example.hw3api.model.Character
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterDetailScreen(
-    uiState: CharacterDetailUiState,
+    uiState: DetailUiState,
     onRetry: () -> Unit,
     onBack: () -> Unit,
     onFavouriteClick: (Character) -> Unit
@@ -48,11 +46,11 @@ fun CharacterDetailScreen(
                 .padding(16.dp)
         ) {
             when(uiState) {
-                is CharacterDetailUiState.Loading -> {
+                is DetailUiState.Loading -> {
                     Text("Loading...")
                 }
 
-                is CharacterDetailUiState.Error -> {
+                is DetailUiState.Error -> {
                     Column {
                         Text(uiState.message)
                         Button(onClick = onRetry) {
@@ -61,7 +59,7 @@ fun CharacterDetailScreen(
                     }
                 }
 
-                is CharacterDetailUiState.Success -> {
+                is DetailUiState.Success -> {
                     val character = uiState.character
 
                     Text(
