@@ -71,8 +71,10 @@ class CharacterRepositoryIntegrationTest {
 
         try {
             repository.searchCharacters("", 1)
-            fail("Expected exception")
-        } catch (e: Exception) {}
+            fail("Expected RuntimeException")
+        } catch (e: RuntimeException) {
+            assertEquals("Fake error", e.message)
+        }
 
         val favourites = repository.getFavourites()
         assertEquals(1, favourites.size)

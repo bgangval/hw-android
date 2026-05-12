@@ -89,15 +89,18 @@ class CharacterRepositoryTest {
 
     @Test
     fun `toggleFavourite twice does not create duplicate`() = runTest {
+        val character = ModelCharacter(1, "Rick Sanchez", "Alive", "Human", "url1", false)
         coEvery { favouriteDao.upsert(any()) } just Runs
         coEvery { favouriteDao.deleteById(1) } just Runs
         coEvery { favouriteDao.getFavouritesIds() } returns emptyList()
 
-        repository.toggleFavourite(ModelCharacter(1, "Rick Sanchez", "Alive", "Human", "url1", false))
+        repository.toggleFavourite(character)
         coVerify(exactly = 1) { favouriteDao.upsert(any<FavouriteEntity>()) }
+        coVerify(exactly = 0) { favouriteDao.deleteById(any()) }
 
         coEvery { favouriteDao.getFavouritesIds() } returns listOf(1)
-        repository.toggleFavourite(ModelCharacter(1, "Rick Sanchez", "Alive", "Human", "url1", true))
+        repository.toggleFavourite(character.copy(isFavourite = true))
         coVerify(exactly = 1) { favouriteDao.deleteById(1) }
+        coVerify(exactly = 1) { favouriteDao.upsert(any<FavouriteEntity>()) }
     }
 }

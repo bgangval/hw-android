@@ -37,12 +37,18 @@ class CharacterViewModelTest {
     }
 
     @Test
-    fun `initial state loads characters`() = runTest {
-        coEvery { repository.searchCharacters(any(), any()) } returns testCharacters
+    fun `initial state is Loading`() = runTest {
+        coEvery { repository.searchCharacters(any(), any()) } coAnswers {
+            delay(1000)
+            testCharacters
+        }
         viewModel = CharacterViewModel(repository)
-        advanceUntilIdle()
 
-        assertFalse(viewModel.listState.isLoading)
+        assertTrue(viewModel.listState.isLoading)
+        assertNull(viewModel.listState.errorMessage)
+        assertTrue(viewModel.listState.characters.isEmpty())
+
+        advanceUntilIdle()
         assertEquals(2, viewModel.listState.characters.size)
     }
 
@@ -74,7 +80,7 @@ class CharacterViewModelTest {
     }
 
     @Test
-    fun `retry after error re-executes search`() = runTest {
+    fun `retry after error re-executes search exactly once`() = runTest {
         coEvery { repository.searchCharacters("Rick", 1) } throws IOException("Error")
         viewModel = CharacterViewModel(repository)
         advanceUntilIdle()
@@ -88,7 +94,7 @@ class CharacterViewModelTest {
 
         assertNull(viewModel.listState.errorMessage)
         assertEquals(2, viewModel.listState.characters.size)
-        coVerify(atLeast = 2) { repository.searchCharacters("Rick", 1) }
+        coVerify(exactly = 2) { repository.searchCharacters("Rick", 1) }
     }
 
     @Test
@@ -120,7 +126,7 @@ class CharacterViewModelTest {
     }
 
     @Test
-    fun `rapid search cancels previous request`() = runTest {
+    fun `rapid search ignores stale response`() = runTest {
         coEvery { repository.searchCharacters("Rick", 1) } coAnswers {
             delay(1000)
             testCharacters
@@ -136,6 +142,8 @@ class CharacterViewModelTest {
 
         assertEquals("Morty", viewModel.listState.searchQuery)
         assertEquals(1, viewModel.listState.characters.size)
+        assertEquals("Morty Smith", viewModel.listState.characters[0].name)
+        assertNull(viewModel.listState.errorMessage)
     }
 
     @Test
@@ -144,12 +152,13 @@ class CharacterViewModelTest {
         viewModel = CharacterViewModel(repository)
         advanceUntilIdle()
 
+        assertFalse(viewModel.listState.isLoading)
+
         viewModel.onSearchChange("Rick")
         advanceUntilIdle()
 
         assertEquals("Rick", viewModel.listState.searchQuery)
         assertFalse(viewModel.listState.isLoading)
         assertEquals(2, viewModel.listState.characters.size)
-        assertNull(viewModel.listState.errorMessage)
     }
 }
